@@ -10,63 +10,66 @@ serve.get("/", (req, res) => {
 	res.send("ok");
 });
 
-serve.get("/participants", (req, res) => {
+serve.get("/participants", async (req, res) => {
 	const mongoClient = new MongoClient("mongodb://localhost:27017");
 
-	mongoClient
-		.connect()
-		.then((conectado) => {
-			const db = conectado.db("back-bate-papo-out");
-			const collection = db.collection("participantes");
-			const promise = collection.find().toArray();
+	try {
+		await mongoClient.connect();
+		const coleçãoParticipates = mongoClient
+			.db("back-bate-papo-out")
+			.collection("participantes");
+		const participantes = await coleçãoParticipates.find().toArray();
 
-			promise
-				.then((participantes) => {
-					res.send(participantes);
-					mongoClient.close();
-				})
-				.catch(() => {
-					res.send("Erro as pegar participantes no get");
-					mongoClient.close();
-				});
-		})
-		.catch((err) => {
-			console.log(err);
-			mongoClient.close();
-			res.send(err);
-		});
+		res.send(participantes);
+		mongoClient.close();
+	} catch (erro) {
+		res.send("Erro as pegar participantes no get");
+		mongoClient.close();
+	}
 });
 
-serve.post("/participants", (req, res) => {
+serve.post("/participants", async (req, res) => {
 	const mongoClient = new MongoClient("mongodb://localhost:27017");
 
-	mongoClient
-		.connect()
-		.then((conectado) => {
-			const db = conectado.db("back-bate-papo-out");
-			db
-				.collection("participantes")
-				.insertOne({
-					...req.body,
-					lastStatus: Date.now(),
-				})
-				.then((parts) => {
-					console.log(parts);
-					res.send("Envio de participantes por servidor feito");
-					mongoClient.close();
-				})
-				.catch((err) => {
-					console.log("Erro ao enviar de participantes para para servidor");
-					console.log(err);
-					res.send(err);
-					mongoClient.close();
-				});
-		})
-		.catch((err) => {
-			console.log(err);
-			res.send(err);
-			mongoClient.close();
+	try {
+		await mongoClient.connect();
+		const coleçãoParticipantes = mongoClient
+			.db("back-bate-papo-out")
+			.collection("participantes");
+		const participanteInserido = await coleçãoParticipantes.insertOne({
+			...req.body,
+			lastStatus: Date.now(),
 		});
+
+		console.log(participanteInserido);
+		mongoClient.close();
+	} catch (erro) {
+		console.log(erro);
+		res.send(erro);
+		mongoClient.close();
+	}
+
+	// mongoClient
+	// 	.connect()
+	// 	.then(() => {
+	// 		const db = mongoClient.db("back-bate-papo-out");
+	// 		const collection = db.collection("participantes");
+	// 		const promise = collection.insertOne({
+	// 			...req.body,
+	// 			lastStatus: Date.now(),
+	// 		});
+
+	// 		promise
+	// 			.then((parts) => {})
+	// 			.catch((err) => {
+	// 				console.log("Erro ao enviar de participantes para para servidor");
+	// 			});
+	// 	})
+	// 	.catch((err) => {
+	// 		console.log(err);
+	// 		res.send(err);
+	// 		mongoClient.close();
+	// 	});
 });
 
 serve.listen(4000);
