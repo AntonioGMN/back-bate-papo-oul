@@ -2,31 +2,17 @@ import express, { json } from "express";
 import { MongoClient } from "mongodb";
 import cors from "cors";
 import dayjs from "dayjs";
+import joi from "joi";
 
 const serve = express();
 serve.use(json());
 serve.use(cors());
 
-serve.get("/", (req, res) => {
-	res.send("ok");
-});
-
-serve.get("/participants", async (req, res) => {
-	const mongoClient = new MongoClient("mongodb://localhost:27017");
-
-	try {
-		await mongoClient.connect();
-		const coleçãoParticipates = mongoClient
-			.db("back-bate-papo-out")
-			.collection("participantes");
-		const participantes = await coleçãoParticipates.find().toArray();
-
-		res.send(participantes);
-		mongoClient.close();
-	} catch (erro) {
-		res.send("Erro as pegar participantes no get");
-		mongoClient.close();
-	}
+const messageSchema = joi.object({
+	from: joi.string().required(),
+	to: joi.string().required(),
+	text: joi.string().required(),
+	type: joi.string().required(),
 });
 
 serve.post("/participants", async (req, res) => {
@@ -65,21 +51,76 @@ serve.post("/participants", async (req, res) => {
 	}
 });
 
-serve.post("/messages", async (req, res) => {
-	//dayjs.locale("pt-br");
+serve.get("/participants", async (req, res) => {
+	const mongoClient = new MongoClient("mongodb://localhost:27017");
 
-	if (!req.body.to || !req.body.text) {
+	try {
+		await mongoClient.connect();
+		const coleçãoParticipates = mongoClient
+			.db("back-bate-papo-out")
+			.collection("participantes");
+		const participantes = await coleçãoParticipates.find().toArray();
+
+		res.send(participantes);
+		mongoClient.close();
+	} catch (erro) {
+		res.send("Erro as pegar participantes no get");
+		mongoClient.close();
+	}
+});
+
+serve.post("/messages", async (req, res) => {
+	const mongoClient = new MongoClient("mongodb://localhost:27017");
+	const from = req.headers.user;
+	const type = req.body.type;
+	let message, destinatario, valida;
+
+	try {
+		await mongoClient.connect();
+		const coleçãoParticipates = mongoClient
+			.db("back-bate-papo-out")
+			.collection("participantes");
+		destinatario = await coleçãoParticipates.findOne({
+			name: from,
+		});
+	} catch (erro) {
+		mongoClient.close();
+	}
+
+	if ((type === "private_message" || type === "message") && destinatario) {
+		message = {
+			from: from,
+			...req.body,
+		};
+	} else {
 		res.sendStatus(422);
 		return;
 	}
 
-	res.send(dayjs().format("HH:mm:ss"));
+	valida = messageSchema.validate(message, { abortEarly: false });
+
+	if (valida.error) {
+		res.sendStatus(422);
+		console.log(validation.error);
+	}
+
+	try {
+		const coleçãoMessages = mongoClient
+			.db("back-bate-papo-out")
+			.collection("messages");
+		await coleçãoMessages.insertOne({ ...message });
+
+		res.sendStatus(201);
+		mongoClient.close();
+	} catch (erro) {
+		res.sendStatus(500);
+		mongoClient.close();
+	}
 });
 
 serve.get("/messages", async (req, res) => {
 	const mongoClient = new MongoClient("mongodb://localhost:27017");
 	const limit = parseInt(req.query.limit);
-	console.log(limit);
 
 	try {
 		await mongoClient.connect();
