@@ -34,6 +34,7 @@ serve.post("/participants", async (req, res) => {
 
 	try {
 		await mongoClient.connect();
+
 		const coleçãoParticipantes = mongoClient
 			.db("back-bate-papo-out")
 			.collection("participantes");
@@ -44,12 +45,12 @@ serve.post("/participants", async (req, res) => {
 
 		const coleçãoMensagens = mongoClient
 			.db("back-bate-papo-out")
-			.collection("mensagens");
+			.collection("messages");
 		const mensagemInserida = await coleçãoMensagens.insertOne({
 			from: req.body.name,
 			to: "Todos",
-			text: "oi galera",
-			type: "message",
+			text: "entra na sala...",
+			type: "status",
 			time: dayjs().format("HH:mm:ss"),
 		});
 
@@ -73,6 +74,29 @@ serve.post("/messages", async (req, res) => {
 	}
 
 	res.send(dayjs().format("HH:mm:ss"));
+});
+
+serve.get("/messages", async (req, res) => {
+	const mongoClient = new MongoClient("mongodb://localhost:27017");
+	const limit = parseInt(req.query.limit);
+	console.log(limit);
+
+	try {
+		await mongoClient.connect();
+		const coleçãoMesssages = mongoClient
+			.db("back-bate-papo-out")
+			.collection("messages");
+		const messages = await coleçãoMesssages.find().toArray();
+
+		if (limit) {
+			res.send(messages.reverse().slice(0, limit));
+		} else res.send(messages.reverse());
+
+		mongoClient.close();
+	} catch {
+		res.send("erro no get messages");
+		mongoClient.close();
+	}
 });
 
 serve.post("/status", async (req, res) => {
