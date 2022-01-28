@@ -13,6 +13,7 @@ const messageSchema = joi.object({
 	to: joi.string().required(),
 	text: joi.string().required(),
 	type: joi.string().required(),
+	time: joi.string(),
 });
 
 serve.post("/participants", async (req, res) => {
@@ -91,6 +92,7 @@ serve.post("/messages", async (req, res) => {
 		message = {
 			from: from,
 			...req.body,
+			time: dayjs().format("HH:mm:ss"),
 		};
 	} else {
 		res.sendStatus(422);
