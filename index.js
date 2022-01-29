@@ -1,5 +1,5 @@
 import express, { json } from "express";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import dotenv from "dotenv";
 import dayjs from "dayjs";
@@ -215,5 +215,47 @@ serve.post("/status", async (req, res) => {
 		mongoClient.close();
 	}
 });
+
+async function limpa_participantes() {
+	const mongoClient = new MongoClient(process.env.MONGO_URI);
+
+	try {
+		await mongoClient.connect();
+
+		const coleçãoParticipantes = mongoClient
+			.db("back-bate-papo-out")
+			.collection("participantes");
+
+		const coleçãoMessags = mongoClient
+			.db("back-bate-papo-out")
+			.collection("messages");
+
+		for (let i = 0; i < participantes.length; i++) {
+			const participantes = await coleçãoParticipantes.find().toArray();
+			const atual = participantes[i];
+
+			console.log(parseInt(Date.now()) - parseInt(atual.lastStatus));
+
+			if (parseInt(Date.now()) - parseInt(atual.lastStatus) > 10) {
+				await coleçãoParticipantes.deleteOne({ _id: new ObjectId(atual._id) });
+				await coleçãoMessags.insertOne({
+					from: atual.name,
+					to: "Todos",
+					text: "sai da sala...",
+					type: "status",
+					time: dayjs().format("HH:mm:ss"),
+				});
+			}
+		}
+
+		mongoClient.close();
+		return "participantes limpos";
+	} catch {
+		mongoClient.close();
+		return;
+	}
+}
+
+setInterval(limpa_participantes, 15000);
 
 serve.listen(5000);
