@@ -153,22 +153,18 @@ serve.get("/messages", async (req, res) => {
 
 	try {
 		await mongoClient.connect();
-		const coleçãoMesssages = mongoClient
+		const coleçãoMessages = mongoClient
 			.db("back-bate-papo-out")
 			.collection("messages");
-		const messages = await coleçãoMesssages
-			.find(
-				{
-					type: { $in: ["message", "status"] },
-				},
-				// {
-				// 	$and: [{ from: { $regex: "user" } }, { type: "private_message" }],
-				// }
-				{
-					to: user,
-					type: "private_message",
-				}
-			)
+		const messages = await coleçãoMessages
+			.find({
+				$or: [
+					{ type: "message" },
+					{ type: "status" },
+					{ from: user },
+					{ to: user },
+				],
+			})
 			.toArray();
 
 		if (limit < messages.length && limit) {
@@ -229,14 +225,15 @@ async function limpa_participantes() {
 		const coleçãoMessags = mongoClient
 			.db("back-bate-papo-out")
 			.collection("messages");
+		const tamanho = await (await coleçãoParticipantes.find().toArray()).length;
 
-		for (let i = 0; i < participantes.length; i++) {
+		console.log(tamanho);
+		for (let i = 0; i < tamanho; i++) {
 			const participantes = await coleçãoParticipantes.find().toArray();
 			const atual = participantes[i];
+			const tempo = Date.now() - atual.lastStatus;
 
-			console.log(parseInt(Date.now()) - parseInt(atual.lastStatus));
-
-			if (parseInt(Date.now()) - parseInt(atual.lastStatus) > 10) {
+			if (tempo > 10000) {
 				await coleçãoParticipantes.deleteOne({ _id: new ObjectId(atual._id) });
 				await coleçãoMessags.insertOne({
 					from: atual.name,
@@ -249,7 +246,7 @@ async function limpa_participantes() {
 		}
 
 		mongoClient.close();
-		return "participantes limpos";
+		return;
 	} catch {
 		mongoClient.close();
 		return;
